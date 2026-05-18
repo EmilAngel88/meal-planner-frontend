@@ -1,6 +1,7 @@
 <template>
   <div v-if="recipe">
     <div class="d-flex align-center mb-4">
+      <v-btn class="mr-3" variant="outlined" @click="goBack">Назад</v-btn>
       <h1 class="text-h5">{{ recipe.title }}</h1>
       <v-spacer />
       <v-chip v-if="recipe.isBase" class="mr-2" variant="tonal">Базовый</v-chip>
@@ -235,6 +236,13 @@ onMounted(async () => {
 })
 
 const save = async () => { await store.update(id, local); edit.value=false }
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+  router.push('/recipes')
+}
 const searchProducts = async (q: string) => { loadingProducts.value = true; try { await store.fetchProducts(q) } finally { loadingProducts.value = false } }
 const addIngredient = async () => {
   if (!newIng.productId || !newIng.weight) return
