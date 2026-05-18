@@ -91,6 +91,7 @@
           <th class="text-right">Б</th>
           <th class="text-right">Ж</th>
           <th class="text-right">У</th>
+          <th v-if="!recipe.isBase" class="text-right"></th>
         </tr>
       </thead>
       <tbody>
@@ -111,6 +112,9 @@
           <td class="text-right">{{ ingredientNutrition(ing).protein }}</td>
           <td class="text-right">{{ ingredientNutrition(ing).fat }}</td>
           <td class="text-right">{{ ingredientNutrition(ing).carbs }}</td>
+          <td v-if="!recipe.isBase" class="text-right">
+            <v-btn color="error" size="small" variant="text" @click="removeIngredient(idx)">Удалить</v-btn>
+          </td>
         </tr>
       </tbody>
     </v-table>
@@ -236,6 +240,22 @@ const addIngredient = async () => {
   if (!newIng.productId || !newIng.weight) return
   const payload = { ingredients: [...(recipe.value?.ingredients || []), { productId: newIng.productId, weight: newIng.weight }] }
   await store.update(id, payload as any); newIng.productId = null; newIng.weight = null
+}
+const removeIngredient = async (index: number) => {
+  const ingredients = [...(recipe.value?.ingredients || [])]
+  ingredients.splice(index, 1)
+  savingIngredients.value = true
+  try {
+    await store.update(id, {
+      ingredients: ingredients.map(ing => ({
+        productId: ing.productId,
+        weight: ing.weight
+      }))
+    })
+    ui.notify('Ингредиент удалён')
+  } finally {
+    savingIngredients.value = false
+  }
 }
 const saveIngredients = async () => {
   const ingredients = recipe.value?.ingredients || []
