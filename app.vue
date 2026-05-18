@@ -32,10 +32,4 @@ import { useUiStore } from '~/stores/ui'
 
 const auth = useAuthStore()
 const ui = useUiStore()
-
-onMounted(async () => {
-    if (auth.token && !auth.user) {
-        await auth.me()
-    }
-})
 </script>

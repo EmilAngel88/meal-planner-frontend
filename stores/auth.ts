@@ -6,7 +6,8 @@ type User = { id:number, email:string }
 export const useAuthStore = defineStore('auth', {
   state:()=>({
     token: process.client ? localStorage.getItem('token') || '' : '',
-    user: null as User|null
+    user: null as User|null,
+    initialized: false
   }),
   getters:{ isAuthed:s=>!!s.token },
   actions:{
@@ -24,21 +25,34 @@ export const useAuthStore = defineStore('auth', {
       this.user=r.user
       if(process.client) localStorage.setItem('token',this.token)
     },
-    async me(){
+    async init(){
+      if (this.initialized) return
+      if (process.client && !this.token) {
+        this.token = localStorage.getItem('token') || ''
+      }
+
+      if (this.token && !this.user) {
+        await this.me(false)
+      }
+
+      this.initialized = true
+    },
+    async me(redirectOnFail = true){
       if (!this.token) return
       try {
         const { me } = useApi()
         this.user = await me()
       } catch (e) {
         console.error("Не удалось загрузить пользователя", e)
-        this.logout()
+        this.logout(redirectOnFail)
       }
     },
-    logout(){
+    logout(redirect = true){
       this.token=''
       this.user=null
+      this.initialized=true
       if(process.client) localStorage.removeItem('token')
-      navigateTo('/login')
+      if (redirect) navigateTo('/login')
     }
   }
 })

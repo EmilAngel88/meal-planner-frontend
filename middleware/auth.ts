@@ -1,6 +1,10 @@
 import { useAuthStore } from '~/stores/auth'
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware(async (to) => {
   const auth = useAuthStore()
+  if (process.client) {
+    await auth.init()
+  }
+
   const protectedRoutes = ['/account','/menu','/shopping-list','/recipes','/products']
   if (!auth.isAuthed) {
     if (to.path === '/' || protectedRoutes.some(p => to.path.startsWith(p))) {
