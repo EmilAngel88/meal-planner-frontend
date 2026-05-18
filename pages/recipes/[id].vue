@@ -3,7 +3,9 @@
     <div class="d-flex align-center mb-4">
       <h1 class="text-h5">{{ recipe.title }}</h1>
       <v-spacer />
-      <v-btn color="primary" @click="edit=true">Редактировать</v-btn>
+      <v-chip v-if="recipe.isBase" class="mr-2" variant="tonal">Базовый</v-chip>
+      <v-btn v-if="recipe.isBase" color="primary" :loading="copying" @click="copyBaseRecipe">Скопировать к себе</v-btn>
+      <v-btn v-else color="primary" @click="edit=true">Редактировать</v-btn>
     </div>
     <p class="mb-4">{{ recipe.description }}</p>
 
@@ -11,7 +13,7 @@
       <h2 class="text-h6">Ингредиенты</h2>
       <v-spacer />
       <v-btn
-        v-if="recipe.ingredients?.length"
+        v-if="recipe.ingredients?.length && !recipe.isBase"
         color="primary"
         size="small"
         :loading="savingIngredients"
@@ -70,6 +72,7 @@
               min="1"
               type="number"
               variant="outlined"
+              :readonly="recipe.isBase"
             />
           </td>
           <td class="text-right">{{ ingredientNutrition(ing).calories }}</td>
@@ -81,17 +84,19 @@
     </v-table>
     <div v-else class="text-medium-emphasis">Ингредиенты пока не добавлены</div>
 
-    <v-divider class="my-6" />
+    <template v-if="!recipe.isBase">
+      <v-divider class="my-6" />
 
-    <h3 class="text-subtitle-1 mb-2">Добавить ингредиент</h3>
-    <v-row>
-      <v-col cols="12" md="6">
-        <v-autocomplete v-model="newIng.productId" :items="products" item-title="name" item-value="id"
-                        label="Продукт" :loading="loadingProducts" @update:search="searchProducts"/>
-      </v-col>
-      <v-col cols="12" md="3"><v-text-field v-model.number="newIng.weight" label="Вес (г)" type="number" /></v-col>
-      <v-col cols="12" md="3"><v-btn class="mt-1" @click="addIngredient">Добавить</v-btn></v-col>
-    </v-row>
+      <h3 class="text-subtitle-1 mb-2">Добавить ингредиент</h3>
+      <v-row>
+        <v-col cols="12" md="6">
+          <v-autocomplete v-model="newIng.productId" :items="products" item-title="name" item-value="id"
+                          label="Продукт" :loading="loadingProducts" @update:search="searchProducts"/>
+        </v-col>
+        <v-col cols="12" md="3"><v-text-field v-model.number="newIng.weight" label="Вес (г)" type="number" /></v-col>
+        <v-col cols="12" md="3"><v-btn class="mt-1" @click="addIngredient">Добавить</v-btn></v-col>
+      </v-row>
+    </template>
 
     <v-dialog v-model="edit" max-width="640">
       <v-card>
@@ -121,9 +126,11 @@
 </template>
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useRecipesStore } from '~/stores/recipes'
 import { storeToRefs } from 'pinia'
 const route = useRoute()
+const router = useRouter()
 const id = Number(route.params.id)
 const store = useRecipesStore()
 const { current: recipe } = storeToRefs(store)
@@ -133,6 +140,7 @@ const products = computed(() => store.products)
 const newIng = reactive<{ productId: number | null, weight: number | null }>({ productId: null, weight: null })
 const loadingProducts = ref(false)
 const savingIngredients = ref(false)
+const copying = ref(false)
 const mealTypeItems = [
   { value: 'breakfast', title: 'Завтрак' },
   { value: 'lunch', title: 'Обед' },
@@ -202,6 +210,15 @@ const saveIngredients = async () => {
     })
   } finally {
     savingIngredients.value = false
+  }
+}
+const copyBaseRecipe = async () => {
+  copying.value = true
+  try {
+    const copied = await store.copy(id)
+    await router.push(`/recipes/${copied.id}`)
+  } finally {
+    copying.value = false
   }
 }
 </script>
