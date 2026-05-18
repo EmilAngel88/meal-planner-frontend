@@ -42,7 +42,7 @@
               <v-alert v-if="!(settings?.customRecipes || []).length" type="info" variant="tonal">
                 Пользовательских рецептов пока нет. После добавления они появятся здесь и по умолчанию не будут включены.
               </v-alert>
-              <v-table v-else density="comfortable">
+              <v-table v-else class="clear-table" density="comfortable">
                 <thead>
                   <tr>
                     <th>Включить</th>
@@ -52,9 +52,17 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="recipe in settings?.customRecipes || []" :key="recipe.id">
+                  <tr
+                    v-for="recipe in settings?.customRecipes || []"
+                    :key="recipe.id"
+                    :class="{ 'selected-row': selectedCustomRecipeIds.includes(recipe.id) }"
+                  >
                     <td>
-                      <v-checkbox-btn
+                      <v-checkbox
+                        class="strong-checkbox"
+                        color="primary"
+                        density="compact"
+                        hide-details
                         :model-value="selectedCustomRecipeIds.includes(recipe.id)"
                         @update:model-value="setCustomRecipeEnabled(recipe, Boolean($event))"
                       />
@@ -92,7 +100,7 @@
                 </v-col>
                 <v-col cols="12" md="7">
                   <v-alert type="info" variant="tonal">
-                    Коллекции уже поддерживаются на backend. Отдельный удобный редактор коллекций лучше вынести на страницу рецептов.
+                    Коллекции собираются из пользовательских рецептов на странице рецептов.
                   </v-alert>
                 </v-col>
               </v-row>
@@ -331,3 +339,23 @@ const generate = async () => {
 
 onMounted(load)
 </script>
+<style scoped>
+.clear-table {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.clear-table :deep(tbody tr) {
+  transition: background-color 120ms ease;
+}
+
+.selected-row {
+  background: rgba(var(--v-theme-primary), 0.08);
+  box-shadow: inset 3px 0 0 rgb(var(--v-theme-primary));
+}
+
+.strong-checkbox :deep(.v-selection-control__input) {
+  opacity: 1;
+}
+</style>

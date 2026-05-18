@@ -13,11 +13,29 @@
 
     <v-window v-model="tab">
       <v-window-item value="recipes">
-        <v-row>
-          <v-col v-for="r in recipes" :key="r.id" cols="12" sm="6" md="4">
-            <RecipeCard :recipe="r" :onDelete="remove"/>
-          </v-col>
-        </v-row>
+        <section v-if="customRecipes.length" class="recipe-section">
+          <div class="recipe-section__header">
+            <h2 class="text-h6">Мои рецепты</h2>
+            <span class="text-caption text-medium-emphasis">{{ customRecipes.length }}</span>
+          </div>
+          <v-row>
+            <v-col v-for="r in customRecipes" :key="r.id" cols="12" sm="6" md="4">
+              <RecipeCard :recipe="r" :onDelete="remove"/>
+            </v-col>
+          </v-row>
+        </section>
+
+        <section class="recipe-section">
+          <div class="recipe-section__header">
+            <h2 class="text-h6">Базовые рецепты</h2>
+            <span class="text-caption text-medium-emphasis">{{ baseRecipes.length }}</span>
+          </div>
+          <v-row>
+            <v-col v-for="r in baseRecipes" :key="r.id" cols="12" sm="6" md="4">
+              <RecipeCard :recipe="r" :onDelete="remove"/>
+            </v-col>
+          </v-row>
+        </section>
       </v-window-item>
 
       <v-window-item value="collections">
@@ -33,7 +51,7 @@
 
         <v-row v-else>
           <v-col v-for="collection in collections" :key="collection.id" cols="12" md="6">
-            <v-card class="h-100">
+            <v-card border class="collection-card h-100" flat>
               <v-card-title>{{ collection.name }}</v-card-title>
               <v-card-text>
                 <div class="text-caption text-medium-emphasis mb-2">Рецептов: {{ collection.items.length }}</div>
@@ -87,33 +105,34 @@
         <v-card-title>{{ editingCollectionId ? 'Редактировать коллекцию' : 'Новая коллекция' }}</v-card-title>
         <v-card-text>
           <v-text-field v-model.trim="collectionName" label="Название" />
-          <v-text-field v-model.trim="collectionSearch" clearable label="Поиск рецепта" />
-          <v-table density="comfortable">
-            <thead>
-              <tr>
-                <th style="width: 72px">Выбор</th>
-                <th>Рецепт</th>
-                <th>Тип</th>
-                <th>Приемы пищи</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="recipe in filteredCollectionRecipes" :key="recipe.id">
-                <td>
-                  <v-checkbox-btn
-                    :model-value="collectionRecipeIds.includes(recipe.id)"
-                    @update:model-value="toggleCollectionRecipe(recipe.id, Boolean($event))"
-                  />
-                </td>
-                <td>{{ recipe.title }}</td>
-                <td>
-                  <v-chip v-if="recipe.isBase" size="small" variant="tonal">Базовый</v-chip>
-                  <v-chip v-else size="small" variant="tonal">Мой</v-chip>
-                </td>
-                <td>{{ formatMealTypes(recipe.mealTypes || []) }}</td>
-              </tr>
-            </tbody>
-          </v-table>
+          <v-text-field v-model.trim="collectionSearch" clearable label="Поиск по моим рецептам" />
+          <v-alert v-if="!customRecipes.length" class="mb-3" type="info" variant="tonal">
+            Для коллекций используются только пользовательские рецепты.
+          </v-alert>
+          <div v-else class="select-list">
+            <button
+              v-for="recipe in filteredCollectionRecipes"
+              :key="recipe.id"
+              class="select-row"
+              :class="{ 'select-row--active': collectionRecipeIds.includes(recipe.id) }"
+              type="button"
+              @click="toggleCollectionRecipe(recipe.id, !collectionRecipeIds.includes(recipe.id))"
+            >
+              <v-checkbox
+                class="strong-checkbox"
+                color="primary"
+                density="compact"
+                hide-details
+                :model-value="collectionRecipeIds.includes(recipe.id)"
+                @click.stop
+                @update:model-value="toggleCollectionRecipe(recipe.id, Boolean($event))"
+              />
+              <div class="select-row__content">
+                <div class="font-weight-medium">{{ recipe.title }}</div>
+                <div class="text-caption text-medium-emphasis">{{ formatMealTypes(recipe.mealTypes || []) }}</div>
+              </div>
+            </button>
+          </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -153,10 +172,12 @@ const mealTypeItems = [
   { value: 'snack', title: 'Перекус' },
   { value: 'any', title: 'Любой' }
 ]
+const customRecipes = computed(() => recipes.value.filter(recipe => !recipe.isBase))
+const baseRecipes = computed(() => recipes.value.filter(recipe => recipe.isBase))
 const filteredCollectionRecipes = computed(() => {
   const query = collectionSearch.value.trim().toLowerCase()
-  if (!query) return recipes.value
-  return recipes.value.filter(recipe => recipe.title.toLowerCase().includes(query))
+  if (!query) return customRecipes.value
+  return customRecipes.value.filter(recipe => recipe.title.toLowerCase().includes(query))
 })
 
 const formatMealTypes = (types: string[]) => {
@@ -183,7 +204,8 @@ const remove = async (id: number) => { await store.remove(id) }
 const openCollectionDialog = (collection?: RecipeCollection) => {
   editingCollectionId.value = collection?.id || null
   collectionName.value = collection?.name || ''
-  collectionRecipeIds.value = collection?.items.map(item => item.recipeId) || []
+  const customRecipeIds = new Set(customRecipes.value.map(recipe => recipe.id))
+  collectionRecipeIds.value = collection?.items.map(item => item.recipeId).filter(id => customRecipeIds.has(id)) || []
   collectionSearch.value = ''
   collectionDialog.value = true
 }
@@ -233,3 +255,63 @@ const removeCollection = async (id: number) => {
   await loadCollections()
 }
 </script>
+<style scoped>
+.recipe-section {
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+  padding-top: 18px;
+}
+
+.recipe-section + .recipe-section {
+  margin-top: 28px;
+}
+
+.recipe-section__header {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.collection-card {
+  border-color: rgba(var(--v-theme-on-surface), 0.22) !important;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.select-list {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.select-row {
+  align-items: center;
+  background: rgb(var(--v-theme-surface));
+  border: 0;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.14);
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  min-height: 58px;
+  padding: 8px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.select-row:last-child {
+  border-bottom: 0;
+}
+
+.select-row--active {
+  background: rgba(var(--v-theme-primary), 0.08);
+  box-shadow: inset 3px 0 0 rgb(var(--v-theme-primary));
+}
+
+.select-row__content {
+  min-width: 0;
+}
+
+.strong-checkbox :deep(.v-selection-control__input) {
+  opacity: 1;
+}
+</style>
