@@ -89,6 +89,7 @@ export const useApi = () => {
   const deleteProduct = (id: number) => $del(`/products/${id}`)
   const generateMenu = (payload?: any) => $post<MealPlan>('/menu/generate', payload || {})
   const getMealPlans = () => $get<MealPlan[]>('/menu')
+  const seedDemoRecipes = () => $post<{ products: number, recipes: number, createdProducts: number, createdRecipes: number }>('/demo/seed-recipes')
 
-  return { login, register, me, getProfile, calculateProfile, manualProfile, presetProfile, getWeightLogs, addWeightLog, deleteWeightLog, getRecipes, getRecipe, createRecipe, updateRecipe, deleteRecipe, getProducts, createProduct, updateProduct, deleteProduct, generateMenu, getMealPlans }
+  return { login, register, me, getProfile, calculateProfile, manualProfile, presetProfile, getWeightLogs, addWeightLog, deleteWeightLog, getRecipes, getRecipe, createRecipe, updateRecipe, deleteRecipe, getProducts, createProduct, updateProduct, deleteProduct, generateMenu, getMealPlans, seedDemoRecipes }
 }

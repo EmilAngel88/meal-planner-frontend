@@ -3,6 +3,7 @@
     <div class="d-flex align-center mb-4">
       <h1 class="text-h5">Генерация меню</h1>
       <v-spacer />
+      <v-btn variant="text" :loading="seeding" @click="seedDemo">Загрузить демо-набор</v-btn>
       <v-btn color="primary" :loading="loading" @click="generate">Сгенерировать</v-btn>
     </div>
 
@@ -106,6 +107,7 @@ const profile = ref<Profile | null>(null)
 const plan = ref<MealPlan | null>(null)
 const history = ref<MealPlan[]>([])
 const loading = ref(false)
+const seeding = ref(false)
 const macroRatios = reactive({ protein: 0.3, fat: 0.25, carbs: 0.45 })
 const meals = reactive([
   { key: 'breakfast', type: 'breakfast', title: 'Завтрак', percent: 0.25, maxItems: 2 },
@@ -153,6 +155,16 @@ const generate = async () => {
     ui.notify('Меню сгенерировано')
   } finally {
     loading.value = false
+  }
+}
+
+const seedDemo = async () => {
+  seeding.value = true
+  try {
+    const result = await api.seedDemoRecipes()
+    ui.notify(`Демо-набор загружен: ${result.recipes} рецептов`)
+  } finally {
+    seeding.value = false
   }
 }
 
