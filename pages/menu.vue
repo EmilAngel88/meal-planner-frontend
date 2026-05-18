@@ -33,46 +33,11 @@
         <v-expansion-panel-title>Рецепты для генерации</v-expansion-panel-title>
         <v-expansion-panel-text>
           <v-tabs v-model="recipeTab" class="mb-3">
-            <v-tab value="base">Базовые</v-tab>
             <v-tab value="custom">Мои рецепты</v-tab>
             <v-tab value="collections">Коллекции</v-tab>
           </v-tabs>
 
           <v-window v-model="recipeTab">
-            <v-window-item value="base">
-              <v-table density="comfortable">
-                <thead>
-                  <tr>
-                    <th>Использовать</th>
-                    <th>Рецепт</th>
-                    <th>Приемы пищи</th>
-                    <th style="width: 160px">Повторов в неделю</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="recipe in settings?.baseRecipes || []" :key="recipe.id">
-                    <td>
-                      <v-checkbox-btn v-model="preferenceFor(recipe).enabled" @update:model-value="scheduleSavePreferences" />
-                    </td>
-                    <td>{{ recipe.title }}</td>
-                    <td>{{ formatMealTypes(recipe.mealTypes || []) }}</td>
-                    <td>
-                      <v-text-field
-                        v-model.number="preferenceFor(recipe).maxPerWeek"
-                        density="compact"
-                        hide-details
-                        min="1"
-                        max="6"
-                        type="number"
-                        variant="outlined"
-                        @update:model-value="scheduleSavePreferences"
-                      />
-                    </td>
-                  </tr>
-                </tbody>
-              </v-table>
-            </v-window-item>
-
             <v-window-item value="custom">
               <v-alert v-if="!(settings?.customRecipes || []).length" type="info" variant="tonal">
                 Пользовательских рецептов пока нет. После добавления они появятся здесь и по умолчанию не будут включены.
@@ -89,7 +54,10 @@
                 <tbody>
                   <tr v-for="recipe in settings?.customRecipes || []" :key="recipe.id">
                     <td>
-                      <v-checkbox-btn v-model="preferenceFor(recipe).includeInGeneration" @update:model-value="scheduleSavePreferences" />
+                      <v-checkbox-btn
+                        :model-value="selectedCustomRecipeIds.includes(recipe.id)"
+                        @update:model-value="setCustomRecipeEnabled(recipe, Boolean($event))"
+                      />
                     </td>
                     <td>{{ recipe.title }}</td>
                     <td>{{ formatMealTypes(recipe.mealTypes || []) }}</td>
@@ -225,9 +193,10 @@ const history = ref<MealPlan[]>([])
 const settings = ref<MenuSettings | null>(null)
 const loading = ref(false)
 const savingPreferences = ref(false)
-const recipeTab = ref('base')
+const recipeTab = ref('custom')
 const selectedCollectionId = ref<number | null>(null)
 const startDate = ref(new Date().toISOString().slice(0, 10))
+const selectedCustomRecipeIds = ref<number[]>([])
 const preferences = reactive<Record<number, RecipePreference>>({})
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -257,6 +226,9 @@ const hydratePreferences = () => {
       maxPerWeek: existing.get(recipe.id)?.maxPerWeek ?? (recipe.isBase ? 4 : 3)
     }
   }
+  selectedCustomRecipeIds.value = (settings.value?.customRecipes || [])
+    .filter(recipe => preferences[recipe.id]?.includeInGeneration)
+    .map(recipe => recipe.id)
 }
 
 const preferenceFor = (recipe: Recipe) => {
@@ -271,9 +243,21 @@ const preferenceFor = (recipe: Recipe) => {
   return preferences[recipe.id]
 }
 
+const setCustomRecipeEnabled = (recipe: Recipe, enabled: boolean) => {
+  const current = new Set(selectedCustomRecipeIds.value)
+  if (enabled) current.add(recipe.id)
+  else current.delete(recipe.id)
+  selectedCustomRecipeIds.value = Array.from(current)
+  preferenceFor(recipe).includeInGeneration = enabled
+  scheduleSavePreferences()
+}
+
 const savePreferences = async () => {
   savingPreferences.value = true
   try {
+    for (const recipe of settings.value?.customRecipes || []) {
+      preferenceFor(recipe).includeInGeneration = selectedCustomRecipeIds.value.includes(recipe.id)
+    }
     await api.saveMenuPreferences(Object.values(preferences))
   } finally {
     savingPreferences.value = false

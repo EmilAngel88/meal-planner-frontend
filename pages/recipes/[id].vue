@@ -9,6 +9,38 @@
     </div>
     <p class="mb-4">{{ recipe.description }}</p>
 
+    <v-card v-if="recipe.isBase" class="mb-4" variant="outlined">
+      <v-card-title class="text-subtitle-1">Генерация меню</v-card-title>
+      <v-card-text>
+        <v-row class="align-center">
+          <v-col cols="12" md="6">
+            <v-switch
+              v-model="baseGenerationEnabled"
+              color="primary"
+              hide-details
+              inset
+              label="Использовать этот базовый рецепт"
+              :loading="savingGeneration"
+              @update:model-value="saveBaseGenerationPreference"
+            />
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-text-field
+              v-model.number="baseMaxPerWeek"
+              density="compact"
+              hide-details
+              label="Повторов в неделю"
+              min="1"
+              max="6"
+              type="number"
+              variant="outlined"
+              @update:model-value="saveBaseGenerationPreference"
+            />
+          </v-col>
+        </v-row>
+      </v-card-text>
+    </v-card>
+
     <div class="d-flex align-center mb-2">
       <h2 class="text-h6">Ингредиенты</h2>
       <v-spacer />
@@ -129,8 +161,12 @@ import { useRoute } from 'vue-router'
 import { useRouter } from 'vue-router'
 import { useRecipesStore } from '~/stores/recipes'
 import { storeToRefs } from 'pinia'
+import { useApi, type RecipePreference } from '~/composables/useApi'
+import { useUiStore } from '~/stores/ui'
 const route = useRoute()
 const router = useRouter()
+const api = useApi()
+const ui = useUiStore()
 const id = Number(route.params.id)
 const store = useRecipesStore()
 const { current: recipe } = storeToRefs(store)
@@ -141,6 +177,10 @@ const newIng = reactive<{ productId: number | null, weight: number | null }>({ p
 const loadingProducts = ref(false)
 const savingIngredients = ref(false)
 const copying = ref(false)
+const savingGeneration = ref(false)
+const baseGenerationEnabled = ref(true)
+const baseMaxPerWeek = ref(4)
+let generationSaveTimer: ReturnType<typeof setTimeout> | null = null
 const mealTypeItems = [
   { value: 'breakfast', title: 'Завтрак' },
   { value: 'lunch', title: 'Обед' },
@@ -187,6 +227,7 @@ onMounted(async () => {
     description: recipe.value?.description || '',
     mealTypes: recipe.value?.mealTypes || []
   })
+  if (recipe.value?.isBase) await loadBaseGenerationPreference()
 })
 
 const save = async () => { await store.update(id, local); edit.value=false }
@@ -220,5 +261,30 @@ const copyBaseRecipe = async () => {
   } finally {
     copying.value = false
   }
+}
+const loadBaseGenerationPreference = async () => {
+  const settings = await api.getMenuSettings()
+  const pref = settings.preferences.find(item => item.recipeId === id)
+  baseGenerationEnabled.value = pref?.enabled ?? true
+  baseMaxPerWeek.value = pref?.maxPerWeek ?? 4
+}
+const saveBaseGenerationPreference = () => {
+  if (!recipe.value?.isBase) return
+  if (generationSaveTimer) clearTimeout(generationSaveTimer)
+  generationSaveTimer = setTimeout(async () => {
+    savingGeneration.value = true
+    try {
+      const preference: RecipePreference = {
+        recipeId: id,
+        enabled: baseGenerationEnabled.value,
+        includeInGeneration: false,
+        maxPerWeek: baseMaxPerWeek.value || 4
+      }
+      await api.saveMenuPreferences([preference])
+      ui.notify('Настройки генерации сохранены')
+    } finally {
+      savingGeneration.value = false
+    }
+  }, 300)
 }
 </script>
