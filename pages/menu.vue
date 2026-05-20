@@ -42,48 +42,94 @@
               <v-alert v-if="!(settings?.customRecipes || []).length" type="info" variant="tonal">
                 Пользовательских рецептов пока нет. После добавления они появятся здесь и по умолчанию не будут включены.
               </v-alert>
-              <v-table v-else class="clear-table" density="comfortable">
-                <thead>
-                  <tr>
-                    <th>Включить</th>
-                    <th>Рецепт</th>
-                    <th>Приемы пищи</th>
-                    <th style="width: 160px">Повторов в неделю</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="recipe in settings?.customRecipes || []"
-                    :key="recipe.id"
-                    :class="{ 'selected-row': selectedCustomRecipeIds.includes(recipe.id) }"
-                  >
-                    <td>
-                      <v-checkbox
-                        class="strong-checkbox"
-                        color="primary"
-                        density="compact"
-                        hide-details
-                        :model-value="selectedCustomRecipeIds.includes(recipe.id)"
-                        @update:model-value="setCustomRecipeEnabled(recipe, Boolean($event))"
-                      />
-                    </td>
-                    <td>{{ recipe.title }}</td>
-                    <td>{{ formatMealTypes(recipe.mealTypes || []) }}</td>
-                    <td>
-                      <v-text-field
-                        v-model.number="preferenceFor(recipe).maxPerWeek"
-                        density="compact"
-                        hide-details
-                        min="1"
-                        max="6"
-                        type="number"
-                        variant="outlined"
-                        @update:model-value="scheduleSavePreferences"
-                      />
-                    </td>
-                  </tr>
-                </tbody>
-              </v-table>
+              <v-row v-else>
+                <v-col cols="12" lg="8">
+                  <v-table class="clear-table" density="comfortable">
+                    <thead>
+                      <tr>
+                        <th style="width: 84px">Включить</th>
+                        <th>Рецепт</th>
+                        <th>Приемы пищи</th>
+                        <th style="width: 170px">Повторов в неделю</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="recipe in settings?.customRecipes || []"
+                        :key="recipe.id"
+                        :class="{ 'selected-row': selectedCustomRecipeIds.includes(recipe.id) }"
+                      >
+                        <td>
+                          <v-checkbox
+                            class="strong-checkbox"
+                            color="primary"
+                            density="compact"
+                            hide-details
+                            :model-value="selectedCustomRecipeIds.includes(recipe.id)"
+                            @update:model-value="setCustomRecipeEnabled(recipe, Boolean($event))"
+                          />
+                        </td>
+                        <td>
+                          <div class="font-weight-medium">{{ recipe.title }}</div>
+                          <div v-if="recipeCollectionNames(recipe.id).length" class="mt-1">
+                            <v-chip
+                              v-for="name in recipeCollectionNames(recipe.id)"
+                              :key="name"
+                              class="mr-1 mb-1"
+                              size="x-small"
+                              variant="outlined"
+                            >
+                              {{ name }}
+                            </v-chip>
+                          </div>
+                        </td>
+                        <td>{{ formatMealTypes(recipe.mealTypes || []) }}</td>
+                        <td>
+                          <v-text-field
+                            v-model.number="preferenceFor(recipe).maxPerWeek"
+                            density="compact"
+                            hide-details
+                            min="1"
+                            max="6"
+                            type="number"
+                            variant="outlined"
+                            @update:model-value="scheduleSavePreferences"
+                          />
+                        </td>
+                      </tr>
+                    </tbody>
+                  </v-table>
+                </v-col>
+
+                <v-col cols="12" lg="4">
+                  <v-card border class="summary-card" flat>
+                    <v-card-title class="text-subtitle-1">Будет добавлено</v-card-title>
+                    <v-card-text>
+                      <div class="text-caption text-medium-emphasis mb-2">
+                        Рецептов: {{ selectedRecipesForGeneration.length }}
+                      </div>
+
+                      <div v-if="selectedCollection" class="mb-3">
+                        <div class="text-caption text-medium-emphasis mb-1">Коллекция</div>
+                        <v-chip size="small" variant="outlined">{{ selectedCollection.name }}</v-chip>
+                      </div>
+
+                      <v-list class="summary-list" density="compact">
+                        <v-list-item
+                          v-for="item in selectedRecipesForGeneration"
+                          :key="item.recipe.id"
+                          :to="`/recipes/${item.recipe.id}`"
+                        >
+                          <v-list-item-title>{{ item.recipe.title }}</v-list-item-title>
+                          <v-list-item-subtitle v-if="item.from">
+                            {{ item.from }}
+                          </v-list-item-subtitle>
+                        </v-list-item>
+                      </v-list>
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+              </v-row>
             </v-window-item>
 
             <v-window-item value="collections">
@@ -99,8 +145,25 @@
                   />
                 </v-col>
                 <v-col cols="12" md="7">
-                  <v-alert type="info" variant="tonal">
-                    Коллекции собираются из пользовательских рецептов на странице рецептов.
+                  <v-card v-if="selectedCollection" border class="collection-preview" flat>
+                    <v-card-title class="text-subtitle-1">{{ selectedCollection.name }}</v-card-title>
+                    <v-card-text>
+                      <div class="text-caption text-medium-emphasis mb-2">
+                        Рецептов: {{ selectedCollectionRecipeIds.length }}
+                      </div>
+                      <v-chip
+                        v-for="rid in selectedCollectionRecipeIds"
+                        :key="rid"
+                        class="mr-1 mb-1"
+                        size="small"
+                        variant="tonal"
+                      >
+                        {{ recipeTitleById(rid) }}
+                      </v-chip>
+                    </v-card-text>
+                  </v-card>
+                  <v-alert v-else type="info" variant="tonal">
+                    Выберите коллекцию. Создание коллекций находится на странице рецептов.
                   </v-alert>
                 </v-col>
               </v-row>
@@ -305,6 +368,58 @@ const formatMealTypes = (types: string[]) => {
   if (!types.length) return 'Любой'
   return types.map(type => mealTypeItems.find(item => item.value === type)?.title || type).join(', ')
 }
+const recipeTitleById = (id: number) => {
+  const all = [...(settings.value?.customRecipes || []), ...(settings.value?.baseRecipes || [])]
+  return all.find(r => r.id === id)?.title || `#${id}`
+}
+
+const recipeCollectionsMap = computed(() => {
+  const map = new Map<number, string[]>()
+  for (const collection of settings.value?.collections || []) {
+    for (const item of collection.items || []) {
+      const list = map.get(item.recipeId) || []
+      list.push(collection.name)
+      map.set(item.recipeId, list)
+    }
+  }
+  for (const [key, value] of map.entries()) {
+    map.set(key, Array.from(new Set(value)).sort((a, b) => a.localeCompare(b)))
+  }
+  return map
+})
+
+const recipeCollectionNames = (recipeId: number) => recipeCollectionsMap.value.get(recipeId) || []
+
+const selectedCollection = computed(() => {
+  if (!selectedCollectionId.value) return null
+  return (settings.value?.collections || []).find(c => c.id === selectedCollectionId.value) || null
+})
+
+const selectedCollectionRecipeIds = computed(() => {
+  return selectedCollection.value?.items?.map(item => item.recipeId) || []
+})
+
+const selectedRecipesForGeneration = computed(() => {
+  const customRecipes = settings.value?.customRecipes || []
+  const selectedByUser = new Set(selectedCustomRecipeIds.value)
+  const selectedFromCollection = new Set(selectedCollectionRecipeIds.value)
+
+  const result: Array<{ recipe: Recipe; from?: string }> = []
+  for (const recipe of customRecipes) {
+    const inUser = selectedByUser.has(recipe.id)
+    const inCol = selectedFromCollection.has(recipe.id)
+    if (!inUser && !inCol) continue
+
+    let from: string | undefined
+    if (inUser && inCol) from = "Выбрано + коллекция"
+    else if (inUser) from = "Выбрано вручную"
+    else from = "Из коллекции"
+
+    result.push({ recipe, from })
+  }
+
+  return result.sort((a, b) => a.recipe.title.localeCompare(b.recipe.title))
+})
 
 const load = async () => {
   profile.value = await api.getProfile()
@@ -357,5 +472,22 @@ onMounted(load)
 
 .strong-checkbox :deep(.v-selection-control__input) {
   opacity: 1;
+}
+
+.summary-card {
+  border-color: rgba(var(--v-theme-on-surface), 0.22) !important;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.summary-list {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.14);
+  border-radius: 8px;
+}
+
+.collection-preview {
+  border-color: rgba(var(--v-theme-on-surface), 0.22) !important;
+  border-radius: 8px;
+  box-shadow: none;
 }
 </style>
