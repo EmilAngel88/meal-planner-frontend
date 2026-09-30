@@ -15,7 +15,9 @@ assert.equal(user.canManageBilling, false, 'Self registration must never grant a
 assert.equal(user.canManageFeedback, false)
 const headers = { Authorization: `Bearer ${token}` }
 assert.equal((await request('/auth/me', { headers })).status, 200)
-const billing = await (await request('/billing', { headers })).json()
+const billingResponse = await request('/billing', { headers })
+assert.equal(billingResponse.status, 200, 'Billing must load without payment credentials')
+const billing = await billingResponse.json()
 assert.equal(billing.config.enabled, false, 'A new deployment must not enable charges by default')
 assert.equal(billing.canBuy, false)
 assert.equal((await request('/billing/admin/settings', { headers })).status, 403)

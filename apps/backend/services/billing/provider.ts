@@ -4,6 +4,7 @@ import { HttpError } from '../../utils/validation';
 const gatewayConfigSchema = z.object({
     mode: z.enum(['test', 'live']), shopId: z.string().regex(/^\d+$/), secret: z.string().min(10),
     returnUrl: z.string().url().refine(value => {
+        if (!URL.canParse(value)) return false;
         const url = new URL(value);
         return !url.username && !url.password && (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)));
     }),
