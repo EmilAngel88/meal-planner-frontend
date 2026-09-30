@@ -1,0 +1,11 @@
+# Add this block to the existing proxy configuration; replace the hostname.
+# The proxy must share PROXY_NETWORK with docker/compose.edge.yml.
+menu.example.com {
+    encode zstd gzip
+    handle_path /api/* {
+        reverse_proxy meal-planner-api:5001
+    }
+    handle {
+        reverse_proxy meal-planner-web:3000
+    }
+}

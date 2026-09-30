@@ -1,0 +1,41 @@
+{
+  "name": "@meal-planner/backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch --require ts-node/register src/index.ts",
+    "build": "tsc",
+    "start": "node dist/src/index.js",
+    "prisma": "prisma",
+    "seed": "ts-node prisma/seed.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --require ts-node/register --test tests/*.test.ts",
+    "test:integration": "node --require ts-node/register --test tests/integration/*.test.ts",
+    "billing:reconcile": "node dist/src/billing-reconcile.js",
+    "billing:admin": "node dist/src/billing-admin.js",
+    "feedback:admin": "node dist/src/feedback-admin.js",
+    "test:capacity": "npm run build && node --require ts-node/register tests/capacity/smoke.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.5.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}

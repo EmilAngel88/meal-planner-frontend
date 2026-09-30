@@ -1,0 +1,43 @@
+ALTER TABLE "Recipe" ADD COLUMN "mealTypes" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "Product" ADD COLUMN "mealTypes" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
+
+CREATE TABLE "MealPlan" (
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "targetCalories" INTEGER NOT NULL,
+    "targetProtein" DOUBLE PRECISION NOT NULL,
+    "targetFat" DOUBLE PRECISION NOT NULL,
+    "targetCarbs" DOUBLE PRECISION NOT NULL,
+    "totalCalories" DOUBLE PRECISION NOT NULL,
+    "totalProtein" DOUBLE PRECISION NOT NULL,
+    "totalFat" DOUBLE PRECISION NOT NULL,
+    "totalCarbs" DOUBLE PRECISION NOT NULL,
+    "settings" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MealPlan_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MealPlanItem" (
+    "id" SERIAL NOT NULL,
+    "mealPlanId" INTEGER NOT NULL,
+    "mealType" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "sourceType" TEXT NOT NULL,
+    "recipeId" INTEGER,
+    "productId" INTEGER,
+    "scale" DOUBLE PRECISION NOT NULL,
+    "weight" DOUBLE PRECISION NOT NULL,
+    "calories" DOUBLE PRECISION NOT NULL,
+    "protein" DOUBLE PRECISION NOT NULL,
+    "fat" DOUBLE PRECISION NOT NULL,
+    "carbs" DOUBLE PRECISION NOT NULL,
+
+    CONSTRAINT "MealPlanItem_pkey" PRIMARY KEY ("id")
+);
+
+ALTER TABLE "MealPlan" ADD CONSTRAINT "MealPlan_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "MealPlanItem" ADD CONSTRAINT "MealPlanItem_mealPlanId_fkey" FOREIGN KEY ("mealPlanId") REFERENCES "MealPlan"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MealPlanItem" ADD CONSTRAINT "MealPlanItem_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "Recipe"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "MealPlanItem" ADD CONSTRAINT "MealPlanItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE SET NULL ON UPDATE CASCADE;

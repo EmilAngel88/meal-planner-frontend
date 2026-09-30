@@ -1,0 +1,208 @@
+name: CI / CD
+
+on:
+  push:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Never interrupt an active database migration or deployment.
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Code and database tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: meal_planner
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/meal_planner?schema=public
+      NUXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run check
+      - run: npm run test:integration
+      - run: npm audit --audit-level=high
+      - name: Check deployment scripts
+        run: bash -n scripts/deploy-release.sh scripts/deploy-over-ssh.sh && node --test scripts/tests/deploy.test.mjs
+
+  images:
+    name: Build and verify containers
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build API
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: apps/backend/Dockerfile
+          target: runtime
+          load: true
+          tags: meal-planner-backend:ci
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+      - name: Build migrations
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: apps/backend/Dockerfile
+          target: migrate
+          load: true
+          tags: meal-planner-migrate:ci
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=migrate,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+      - name: Build frontend
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: apps/frontend/Dockerfile
+          target: runtime
+          load: true
+          tags: meal-planner-frontend:ci
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+      - name: Start isolated application
+        run: |
+          node scripts/init-docker-env.cjs
+          cat >> .env <<'ENV'
+          BACKEND_IMAGE=meal-planner-backend:ci
+          MIGRATE_IMAGE=meal-planner-migrate:ci
+          FRONTEND_IMAGE=meal-planner-frontend:ci
+          BACKEND_PORT=18081
+          FRONTEND_PORT=18080
+          NUXT_PUBLIC_API_BASE=http://127.0.0.1:18081
+          CORS_ORIGINS=http://127.0.0.1:18080
+          ENV
+          docker compose -p meal-planner-ci --env-file .env -f docker/compose.images.yml up -d --wait --wait-timeout 180
+      - name: Test running containers
+        run: node scripts/container-smoke.mjs
+      - name: Collect container diagnostics
+        if: failure()
+        run: docker compose -p meal-planner-ci --env-file .env -f docker/compose.images.yml logs --no-color --tail 150
+      - name: Remove isolated test containers
+        if: always()
+        run: |
+          if test -f .env; then
+            docker compose -p meal-planner-ci --env-file .env -f docker/compose.images.yml down --volumes --remove-orphans
+          fi
+      - name: Sign in to GitHub Container Registry
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish tested images and release bundle
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        env:
+          REPOSITORY: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+        run: |
+          mkdir -p release/docker release/scripts
+          for component in backend migrate frontend; do
+            image="ghcr.io/${REPOSITORY,,}/${component}"
+            docker tag "meal-planner-${component}:ci" "${image}:${REVISION}"
+            docker push "${image}:${REVISION}"
+            digest=$(docker inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "${image}:${REVISION}" | grep -F "${image}@sha256:" | head -1)
+            test -n "$digest"
+            printf '%s_IMAGE=%s\n' "${component^^}" "$digest" >> release/images.env
+          done
+          cp docker/compose.images.yml docker/compose.edge.yml release/docker/
+          cp scripts/deploy-release.sh release/scripts/
+          printf '%s\n' "$REVISION" > release/revision
+          tar -czf release.tgz -C release .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        with:
+          name: release-${{ github.sha }}
+          path: release.tgz
+          if-no-files-found: error
+          retention-days: 30
+
+  deploy:
+    name: Deploy production
+    needs: images
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production
+    concurrency:
+      group: production-deployment
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-${{ github.sha }}
+      - name: Check that the release is still current
+        id: current
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          head=$(curl --fail --silent --show-error -H "Authorization: Bearer $GH_TOKEN" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/git/ref/heads/master" | jq -r '.object.sha')
+          if test "$head" = "$GITHUB_SHA"; then
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Skipping an outdated release; a newer commit is on master.'
+          fi
+      - name: Deploy verified release
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/meal-planner' }}
+          DEPLOY_EDGE: ${{ vars.DEPLOY_EDGE || 'false' }}
+          DEPLOY_HEALTH_URL: ${{ vars.DEPLOY_HEALTH_URL }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/deploy-over-ssh.sh

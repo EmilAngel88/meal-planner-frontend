@@ -1,0 +1,109 @@
+name: meal-planner
+
+x-backend-environment: &backend-environment
+  NODE_ENV: production
+  DATABASE_URL: postgresql://meal_planner:${POSTGRES_PASSWORD:?Run node scripts/init-docker-env.cjs first}@postgres:5432/meal_planner?schema=public&connection_limit=${DATABASE_CONNECTION_LIMIT:-10}&pool_timeout=5&connect_timeout=5&socket_timeout=30
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_USER: meal_planner
+      POSTGRES_DB: meal_planner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node scripts/init-docker-env.cjs first}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meal_planner -d meal_planner"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      target: migrate
+    environment:
+      <<: *backend-environment
+      SEED_BASE_CATALOG: ${SEED_BASE_CATALOG:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    init: true
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      target: runtime
+    environment:
+      <<: *backend-environment
+      JWT_SECRET: ${JWT_SECRET:?Run node scripts/init-docker-env.cjs first}
+      HOST: 0.0.0.0
+      PORT: 5001
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      GENERATION_WORKERS: ${GENERATION_WORKERS:-2}
+      GENERATION_QUEUE_LIMIT: ${GENERATION_QUEUE_LIMIT:-4}
+      GENERATION_TIMEOUT_MS: ${GENERATION_TIMEOUT_MS:-45000}
+      MAX_CONCURRENT_REQUESTS: ${MAX_CONCURRENT_REQUESTS:-256}
+      SHUTDOWN_TIMEOUT_MS: 30000
+      BILLING_PAYMENT_MODE: ${BILLING_PAYMENT_MODE:-disabled}
+      YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID:-}
+      YOOKASSA_SECRET_KEY: ${YOOKASSA_SECRET_KEY:-}
+      BILLING_RETURN_URL: ${BILLING_RETURN_URL:-}
+      YOOKASSA_RECEIPT_MODE: ${YOOKASSA_RECEIPT_MODE:-}
+      YOOKASSA_VAT_CODE: ${YOOKASSA_VAT_CODE:-}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8081}:5001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    init: true
+    stop_grace_period: 35s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE:-http://localhost:8081}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-8080}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,366 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int                @id @default(autoincrement())
+  email             String             @unique
+  password          String
+  role              String             @default("user")
+  canManageFeedback Boolean            @default(false)
+  canManageBilling  Boolean            @default(false)
+  billingTrial      BillingTrial?
+  billingGrants     BillingGrant[]
+  billingUsage      BillingUsage[]
+  billingOrders     BillingOrder[]
+  profile           Profile?
+  recipes           Recipe[]
+  products          Product[]
+  logs              WeightLog[]
+  UserActivity      UserActivity[]
+  mealPlans         MealPlan[]
+  recipePreferences RecipePreference[]
+  recipeCollections RecipeCollection[]
+  feedback          Feedback[]
+}
+
+model BillingSettings {
+  id        Int      @id @default(1)
+  version   Int      @default(1)
+  config    Json
+  updatedAt DateTime @updatedAt
+}
+
+model BillingAudit {
+  id        Int      @id @default(autoincrement())
+  actorId   Int
+  action    String
+  details   Json
+  createdAt DateTime @default(now())
+}
+
+model BillingTrial {
+  userId     Int      @id
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startsAt   DateTime @default(now())
+  endsAt     DateTime
+  limit      Int
+}
+
+model BillingGrant {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId    String?  @unique @db.Uuid
+  order      BillingOrder? @relation(fields: [orderId], references: [id])
+  source     String
+  name       String
+  limit      Int
+  startsAt   DateTime
+  endsAt     DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, endsAt])
+}
+
+model BillingUsage {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bucket    String
+  createdAt DateTime @default(now())
+
+  @@index([userId, bucket])
+}
+
+model BillingOrder {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             Int
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestId          String   @db.Uuid
+  offerId            String
+  name               String
+  days               Int
+  limit              Int
+  amountMinor        Int
+  currency           String   @default("RUB")
+  configVersion      Int
+  status             String   @default("pending")
+  providerMode       String
+  merchantId         String
+  providerPaymentId  String?  @unique
+  providerRequest    Json
+  confirmationUrl    String?
+  refundedMinor      Int      @default(0)
+  createdAt          DateTime @default(now())
+  paidAt             DateTime?
+  updatedAt          DateTime @updatedAt
+  grant              BillingGrant?
+
+  @@unique([userId, requestId])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+enum FeedbackCategory {
+  bug
+  idea
+  other
+}
+
+enum FeedbackStatus {
+  new
+  planned
+  in_progress
+  done
+  closed
+}
+
+enum FeedbackDeviceType {
+  mobile
+  tablet
+  desktop
+}
+
+model Feedback {
+  id         Int                @id @default(autoincrement())
+  userId     Int
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestId  String             @db.Uuid
+  category   FeedbackCategory
+  message    String             @db.VarChar(4000)
+  pagePath   String?            @db.VarChar(64)
+  deviceType FeedbackDeviceType?
+  status     FeedbackStatus     @default(new)
+  reply      String             @default("") @db.VarChar(2000)
+  version    Int                @default(1)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@unique([userId, requestId])
+  @@index([userId, id])
+  @@index([userId, createdAt])
+  @@index([status, id])
+  @@index([category, id])
+}
+
+model Profile {
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id])
+
+  age      Int?
+  gender   String? // "male" | "female"; not needed for a known calorie target
+  height   Int? // см
+  weight   Float // кг
+  activity String? // legacy activity category
+  goal     String // "loss" | "maintain" | "gain"
+  goalRate Float @default(0.15)
+  calories Int // текущая норма (TDEE или ручной ввод)
+  goalSetup Json? // versioned questionnaire and calculation, null for legacy goals
+}
+
+model Activity {
+  id           Int            @id @default(autoincrement())
+  name         String         @unique
+  category     String?         // категория
+  met          Float // MET — метаболический эквивалент активности
+  UserActivity UserActivity[]
+}
+
+model UserActivity {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  activityId Int
+  activity   Activity @relation(fields: [activityId], references: [id])
+  duration   Int // минуты
+  date       DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([activityId])
+}
+
+model WeightLog {
+  id     Int      @id @default(autoincrement())
+  userId Int
+  user   User     @relation(fields: [userId], references: [id])
+  weight Float
+  date   DateTime @default(now())
+
+  @@index([userId, date, id])
+}
+
+model Recipe {
+  id                Int                    @id @default(autoincrement())
+  title             String
+  description       String
+  servings          Int                    @default(1)
+  mealTypes         String[]               @default([])
+  user              User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            Int?
+  isBase            Boolean                @default(false)
+  visibility        String                 @default("private")
+  baseRecipeId      Int?
+  isEnabled         Boolean                @default(true)
+  instructions      String[]               @default([])
+  prepMinutes       Int?
+  cookMinutes       Int?
+  cookingMode       String                 @default("fresh")
+  storageDays       Int?
+  storageInstructions String                 @default("")
+  batchNotes        String                 @default("")
+  freezerFriendly   Boolean                @default(false)
+  cookedWeight      Float?
+  ingredients       Ingredient[]
+  mealPlanItems     MealPlanItem[]
+  preferences       RecipePreference[]
+  collectionItems   RecipeCollectionItem[]
+
+  @@index([userId, title, id])
+  @@index([isBase, isEnabled])
+}
+
+model Product {
+  id            Int            @id @default(autoincrement())
+  name          String
+  brand         String         @default("")
+  baseProductId Int?
+  baseProduct   Product?       @relation("ProductVariants", fields: [baseProductId], references: [id], onDelete: SetNull)
+  variants      Product[]      @relation("ProductVariants")
+  foodGroup     String         @default("other")
+  preparationState String      @default("as_sold")
+  nutritionBasis String        @default("100g")
+  density       Float          @default(1)
+  notes         String         @default("")
+  sourceLabel   String         @default("")
+  sourceUrl     String         @default("")
+  sourceCode    String         @default("")
+  isArchived    Boolean        @default(false)
+  mealTypes     String[]       @default([])
+  calories      Float // ккал на 100 г
+  protein       Float // белки на 100 г
+  fat           Float // жиры на 100 г
+  carbs         Float // углеводы на 100 г
+  user          User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        Int?
+  isBase        Boolean        @default(false)
+  visibility    String         @default("private")
+  unitType      String         @default("gram")
+  unitWeight    Float?
+  category      String         @default("base")
+  ingredients   Ingredient[]
+  mealPlanItems MealPlanItem[]
+
+  @@unique([userId, name, brand])
+  @@index([isBase])
+  @@index([baseProductId])
+}
+
+model Ingredient {
+  id        Int     @id @default(autoincrement())
+  recipe    Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId  Int
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+  weight    Float // вес продукта в граммах для этого рецепта
+  quantity  Float?
+  unitType  String?
+
+  @@index([recipeId])
+  @@index([productId])
+}
+
+model RecipePreference {
+  id                  Int      @id @default(autoincrement())
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipeId            Int
+  recipe              Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  enabled             Boolean  @default(true)
+  includeInGeneration Boolean  @default(false)
+  maxPerWeek          Int?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([userId, recipeId])
+  @@index([recipeId])
+}
+
+model RecipeCollection {
+  id        Int                    @id @default(autoincrement())
+  userId    Int
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  items     RecipeCollectionItem[]
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  @@index([userId, updatedAt, id])
+}
+
+model RecipeCollectionItem {
+  id           Int              @id @default(autoincrement())
+  collectionId Int
+  collection   RecipeCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  recipeId     Int
+  recipe       Recipe           @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, recipeId])
+  @@index([recipeId])
+}
+
+model MealPlan {
+  id             Int            @id @default(autoincrement())
+  userId         Int
+  user           User           @relation(fields: [userId], references: [id])
+  date           DateTime       @default(now())
+  startDate      DateTime?
+  daysCount      Int            @default(6)
+  targetCalories Int
+  targetProtein  Float
+  targetFat      Float
+  targetCarbs    Float
+  totalCalories  Float
+  totalProtein   Float
+  totalFat       Float
+  totalCarbs     Float
+  settings       Json
+  items          MealPlanItem[]
+  createdAt      DateTime       @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model MealPlanItem {
+  id         Int      @id @default(autoincrement())
+  mealPlanId Int
+  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  dayIndex   Int      @default(0)
+  mealIndex  Int      @default(0)
+  mealTitle  String   @default("")
+  shoppingSnapshot Json?
+  mealType   String
+  title      String
+  sourceType String
+  recipeId   Int?
+  recipe     Recipe?  @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  productId  Int?
+  product    Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  scale      Float
+  weight     Float
+  calories   Float
+  protein    Float
+  fat        Float
+  carbs      Float
+
+  @@index([mealPlanId, dayIndex, mealIndex])
+  @@index([recipeId])
+  @@index([productId])
+}

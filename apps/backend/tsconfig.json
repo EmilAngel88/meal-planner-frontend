@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "rootDir": ".",
+    "outDir": "dist",
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*.ts", "routes/**/*.ts", "middleware/**/*.ts", "utils/**/*.ts", "services/**/*.ts", "types/**/*.ts", "prisma.ts"],
+  "exclude": ["dist", "node_modules", "prisma/seed.ts"]
+}

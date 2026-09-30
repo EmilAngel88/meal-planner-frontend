@@ -1,0 +1,18 @@
+# Optional overlay for an existing reverse proxy on an external Docker network.
+# docker compose -f docker-compose.yml -f docker/compose.edge.yml up -d
+services:
+  backend:
+    networks:
+      default:
+      edge:
+        aliases: [meal-planner-api]
+  frontend:
+    networks:
+      default:
+      edge:
+        aliases: [meal-planner-web]
+
+networks:
+  edge:
+    external: true
+    name: ${PROXY_NETWORK:?Set the existing reverse proxy network name}
