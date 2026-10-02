@@ -1,0 +1,25 @@
+{
+  "duration" : 349.39999999999998,
+  "tracks" : [
+    {
+      "codecs" : [
+        "aac "
+      ],
+      "duration" : 349.39999999999998,
+      "fps" : 23.4375,
+      "height" : 0,
+      "type" : "soun",
+      "width" : 0
+    },
+    {
+      "codecs" : [
+        "avc1"
+      ],
+      "duration" : 349.39999999999998,
+      "fps" : 30,
+      "height" : 1080,
+      "type" : "vide",
+      "width" : 1920
+    }
+  ]
+}

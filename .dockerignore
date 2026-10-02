@@ -17,3 +17,5 @@ tmp
 .idea
 
 .docker-local
+# The standalone tutorial is distributed with the repository, not application images.
+docs/tutorial
