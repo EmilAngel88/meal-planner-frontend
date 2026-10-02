@@ -45,7 +45,10 @@ jobs:
       - run: npm run db:generate
       - run: npm run check
       - run: npm run test:integration
-      - run: npm audit --audit-level=high
+      - name: Test security gates
+        run: node --test scripts/tests/security.test.mjs
+      - name: Audit dependencies with expiring reviewed exception
+        run: node scripts/audit-dependencies.mjs
       - name: Check deployment scripts
         run: bash -n scripts/deploy-release.sh scripts/deploy-over-ssh.sh && node --test scripts/tests/deploy.test.mjs
 
@@ -104,6 +107,11 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+      - name: Verify node-forge is absent from runtime images
+        run: |
+          for component in backend frontend; do
+            docker run --rm --network none -i --entrypoint node "meal-planner-${component}:ci" --input-type=module - /app < scripts/assert-no-forge.mjs
+          done
       - name: Start isolated application
         run: |
           node scripts/init-docker-env.cjs
