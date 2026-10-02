@@ -58,6 +58,9 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 .mp-topbar-date { font-size: 12px; color: var(--text-secondary); text-transform: capitalize; }
 .mp-feedback-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; flex-shrink: 0; padding: 8px 12px; border: 1px solid #c9aa93; border-radius: 12px; background: var(--color-terracotta-soft, #fbf1e9); color: var(--color-terracotta, #a34e2c); font-size: 13px; font-weight: 600; cursor: pointer; }
 .mp-feedback-trigger:hover { background: #f4e3d5; }
+.mp-tutorial-link { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 8px; color: var(--color-primary); font-size: 13px; font-weight: 600; text-decoration: none; flex-shrink: 0; }
+.mp-tutorial-link:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; border-radius: 8px; }
+@media (max-width: 600px) { .mp-tutorial-link span { display: none; } .mp-shell--public .mp-topbar-date { display: none; } }
 .mp-feedback-trigger:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; }
 .mp-feedback-account { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 22px; margin-block: 28px; border: 1px solid #d9c696; background: var(--color-honey-soft); border-radius: 16px; }
 .mp-feedback-account h2 { font-size: 22px; margin-bottom: 6px; }

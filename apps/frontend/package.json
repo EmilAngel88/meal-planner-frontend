@@ -8,7 +8,9 @@
     "build": "nuxt build",
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
-    "test": "node --experimental-strip-types --test tests/*.test.ts"
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "predev": "node scripts/prepare-tutorial.mjs",
+    "prebuild": "node scripts/prepare-tutorial.mjs"
   },
   "dependencies": {
     "@mdi/js": "^7.4.47",

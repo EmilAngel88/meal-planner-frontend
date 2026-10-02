@@ -29,6 +29,7 @@
           <span v-if="auth.isAuthed" class="mp-breadcrumb">Ваше пространство <span>/</span> <strong>{{ currentSection }}</strong></span>
           <span v-else class="mp-public-tagline">Чуть меньше забот о еде</span>
           <span class="mp-topbar-date">{{ dateLabel }}</span>
+          <NuxtLink to="/tutorial" class="mp-tutorial-link" aria-label="Обучение работе с Рационом"><MpIcon name="book" :size="20" /><span>Обучение</span></NuxtLink>
           <button v-if="auth.isAuthed" type="button" class="mp-feedback-trigger" aria-label="Написать отзыв" title="Написать отзыв" @click="openFeedback"><MpIcon name="message" :size="20" /><span>Написать отзыв</span></button>
           <NuxtLink v-if="auth.isAuthed" to="/account" class="mp-mobile-account" aria-label="Моя цель и аккаунт"><span class="mp-avatar">{{ userInitials }}</span></NuxtLink>
         </header>
@@ -66,6 +67,7 @@ const navItems = [
   { to: '/shopping-list', label: 'Покупки', mobileLabel: 'Покупки', icon: 'bag' }
 ]
 const secondaryItems = computed(() => [
+  { to: '/tutorial', label: 'Обучение', icon: 'book' },
   { to: '/account', label: 'Моя цель', icon: 'target' },
   { to: '/billing', label: 'Тариф и оплата', icon: 'leaf' },
   ...(auth.canManageBilling ? [{ to: '/billing/admin', label: 'Монетизация', icon: 'sliders' }] : []),

@@ -11,6 +11,7 @@ RUN npm ci --workspace=@meal-planner/frontend --include-workspace-root --no-audi
 COPY tsconfig.base.json ./
 COPY apps/frontend apps/frontend
 COPY packages/shared packages/shared
+COPY docs/tutorial docs/tutorial
 RUN npm run build --workspace=@meal-planner/frontend
 
 FROM node:24-bookworm-slim AS runtime

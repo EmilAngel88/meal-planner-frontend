@@ -22,3 +22,4 @@ tmp/
 *.log
 *.dump
 *.sql.gz
+apps/frontend/public/tutorial-assets/
