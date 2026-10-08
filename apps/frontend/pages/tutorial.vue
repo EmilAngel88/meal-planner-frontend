@@ -1,7 +1,7 @@
 <template>
   <div class="tutorial-page">
     <header class="mp-page-head">
-      <div class="mp-page-head__meta"><span class="mp-overline">5 минут 49 секунд · 17 глав</span><h1 class="mp-page-title">Меню. Покупки. Готовка.</h1><p class="mp-page-subtitle">От первой цели до готового плана. Посмотрите руководство целиком или выберите нужный шаг.</p></div>
+      <div class="mp-page-head__meta"><span class="mp-overline">{{ stamp(Math.round(tutorial.duration)) }} · {{ tutorial.chapters.length }} глав</span><h1 class="mp-page-title">Меню. Покупки. Готовка.</h1><p class="mp-page-subtitle">От первой цели до готового плана. Посмотрите руководство целиком или выберите нужный шаг.</p></div>
       <v-btn to="/menu" color="primary" variant="tonal">К моей неделе</v-btn>
     </header>
     <div class="tutorial-layout">
@@ -13,7 +13,7 @@
         </video>
         <p v-if="mediaError" role="alert" class="tutorial-error">Не удалось загрузить видео. Обновите страницу или попробуйте скачать файл.</p>
         <div class="tutorial-actions"><button type="button" :aria-pressed="subtitles" @click="toggleSubtitles">Субтитры: {{ subtitles ? 'вкл.' : 'выкл.' }}</button><a href="/tutorial-video.mp4" download="ration-tutorial-ru.mp4">Скачать видео</a></div>
-        <p class="tutorial-note">В примерах — демонстрационные данные. Озвучка создана ИИ на основе голоса автора.</p>
+        <p class="tutorial-note">В примерах — демонстрационные данные. Озвучка — предоставленная автором запись.</p>
       </section>
       <nav class="tutorial-chapters" aria-label="Главы обучения">
         <h2>Внутри видео</h2>

@@ -1,25 +1,44 @@
 {
-  "duration" : 349.39999999999998,
-  "tracks" : [
+  "duration": 327.634,
+  "tracks": [
     {
-      "codecs" : [
+      "codecs": [
         "aac "
       ],
-      "duration" : 349.39999999999998,
-      "fps" : 23.4375,
-      "height" : 0,
-      "type" : "soun",
-      "width" : 0
+      "duration": 327.6333333333333,
+      "fps": 46.875,
+      "height": 0,
+      "type": "soun",
+      "width": 0
     },
     {
-      "codecs" : [
+      "codecs": [
         "avc1"
       ],
-      "duration" : 349.39999999999998,
-      "fps" : 30,
-      "height" : 1080,
-      "type" : "vide",
-      "width" : 1920
+      "duration": 327.6333333333333,
+      "fps": 30,
+      "height": 1080,
+      "type": "vide",
+      "width": 1920
     }
-  ]
+  ],
+  "expectedFrames": 9829,
+  "expectedDuration": 327.6333333333333,
+  "fileBytes": 79559861,
+  "shots": 47,
+  "version": "revision-05",
+  "encoderTargetBitrate": 6000000,
+  "maxKeyFrameIntervalSeconds": 6,
+  "audioFile": "ration-soundtrack-ru.wav",
+  "openingHoldAddedSeconds": 2,
+  "actualFrameCount": 9829,
+  "fullVideoDecodePassed": true,
+  "visualInspectionPassed": true,
+  "openingCardFrames": 148,
+  "openingCardDuration": 4.933333333333334,
+  "sha256": "a7157ca7cdf844c6f79c52d403d033659a31a6ce55eb52defc42afbcccabb344",
+  "audioBitrate": 256000,
+  "pictureStreamIdenticalToRevision04": true,
+  "pictureStreamHash": "SHA256=a02f166eac40f0ef1dc7203a540684a8192c4bc7147114633bd8af0af4e4f7bb",
+  "audioProcessing": "Noise reduction, transient repair, gentle EQ, compression and de-essing; music reduced under speech."
 }
