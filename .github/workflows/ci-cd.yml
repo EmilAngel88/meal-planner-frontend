@@ -41,12 +41,14 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Install npm with workspace override fixes
+        run: npm install --global npm@11.21.0 --no-audit --no-fund
       - run: npm ci
       - run: npm run db:generate
       - run: npm run check
       - run: npm run test:integration
       - name: Test security gates
-        run: node --test scripts/tests/security.test.mjs
+        run: node --test scripts/tests/security.test.mjs scripts/tests/braces-exception.test.mjs scripts/tests/braces-runtime.test.mjs scripts/tests/patch-devtools-git.test.mjs
       - name: Audit dependencies with expiring reviewed exception
         run: node scripts/audit-dependencies.mjs
       - name: Check deployment scripts
@@ -107,10 +109,11 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-      - name: Verify node-forge is absent from runtime images
+      - name: Verify vulnerable build dependencies are absent from runtime images
         run: |
           for component in backend frontend; do
             docker run --rm --network none -i --entrypoint node "meal-planner-${component}:ci" --input-type=module - /app < scripts/assert-no-forge.mjs
+            docker run --rm --network none -i --entrypoint node "meal-planner-${component}:ci" --input-type=module - /app < scripts/assert-no-braces.mjs
           done
       - name: Start isolated application
         run: |

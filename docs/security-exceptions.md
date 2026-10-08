@@ -30,3 +30,42 @@ lockfile, run the full audit and CI, then remove the temporary exception logic.
 Keep the runtime absence check while the release relies on this exception.
 
 Tests: `node --test scripts/tests/security.test.mjs`.
+
+## Dependency repair prepared on 8 October 2026
+
+The tutorial release e31d1f9 was blocked before container publication by new
+advisories. Compatible updates replace shell-quote 1.10.0 with 1.12.0 and
+source-map-js 1.2.1 with 1.2.2. A scoped override upgrades DevTools' simple-git
+to 4.0.2 (argv-parser 2.0.1). DevTools 3.4.2 needs a narrowly checked postinstall
+compatibility patch: its removed default import is replaced by the named
+simpleGit factory. The patch is idempotent and rejects unexpected versions
+or source layouts. Its tests cover a real ESM named-export fixture.
+
+npm 11.21.0 is pinned in packageManager, CI and Docker build stages because
+older npm can lose overrides across workspace links. See the upstream
+[workspace override fix](https://github.com/npm/cli/pull/9671).
+
+## Additional exception approved on 8 October 2026
+
+The service owner explicitly approved the following separate temporary exception.
+It does not extend the original deadline or allow other high/critical findings.
+
+- Advisory: [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), npm source 1240992.
+- Package: `braces@3.0.3`, only `node_modules/braces` in the lockfile.
+- Expiry: **2026-10-09T09:36:10Z** (9 October, 12:36 Moscow).
+- Scope: the exact high-severity advisory (`<=3.0.3`) and its four audit entries:
+  `braces`, `micromatch`, `fast-glob`, `globby`. The accepted graph is
+  `micromatch -> braces`, `fast-glob -> micromatch`, and
+  `globby -> fast-glob, micromatch`. Different advisory identities, dependency
+  locations, versions of braces, edges, or additional findings fail closed.
+- Risk accepted: denial of service from untrusted deeply nested glob patterns in
+  build tooling. No upstream braces fix was available when this was approved.
+- Condition: before publishing, **both backend and frontend server runtime
+  images** must pass `scripts/assert-no-braces.mjs` as well as the existing
+  forge check. The new check rejects braces and its glob dependency chain via
+  package directories/manifests and JavaScript references throughout `/app`.
+  It follows symlinks, fails on unreadable/missing scan roots, and distinguishes
+  ordinary uses of the word "braces" from module code. This static check is an
+  additional gate, not a general bundled-code SCA.
+
+Tests: `node --test scripts/tests/security.test.mjs scripts/tests/braces-exception.test.mjs scripts/tests/braces-runtime.test.mjs scripts/tests/patch-devtools-git.test.mjs`.

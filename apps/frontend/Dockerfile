@@ -2,8 +2,10 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
 ENV NUXT_TELEMETRY_DISABLED=1 PRISMA_SKIP_POSTINSTALL_GENERATE=true
+RUN npm install --global npm@11.21.0 --no-audit --no-fund
 COPY package.json package-lock.json .npmrc ./
 COPY scripts/check-node.cjs scripts/check-node.cjs
+COPY scripts/patch-devtools-git.mjs scripts/patch-devtools-git.mjs
 COPY apps/frontend/package.json apps/frontend/package.json
 COPY apps/backend/package.json apps/backend/package.json
 COPY packages/shared/package.json packages/shared/package.json

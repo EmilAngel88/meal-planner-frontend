@@ -5,8 +5,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
+RUN npm install --global npm@11.21.0 --no-audit --no-fund
 COPY package.json package-lock.json .npmrc ./
 COPY scripts/check-node.cjs scripts/check-node.cjs
+COPY scripts/patch-devtools-git.mjs scripts/patch-devtools-git.mjs
 COPY apps/backend/package.json apps/backend/package.json
 COPY apps/frontend/package.json apps/frontend/package.json
 COPY packages/shared/package.json packages/shared/package.json
